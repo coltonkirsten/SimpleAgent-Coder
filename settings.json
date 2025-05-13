@@ -1,0 +1,10 @@
+{
+  "logging": {
+    "print_system_logs": true,
+    "print_debug_logs": false,
+    "print_error_logs": true,
+    "print_llm_logs": true,
+    "print_tool_logs": true,
+    "write_to_file": false
+  }
+}
