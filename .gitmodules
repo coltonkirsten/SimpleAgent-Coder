@@ -1,0 +1,3 @@
+[submodule "SimpleAgent"]
+	path = SimpleAgent
+	url = https://github.com/coltonkirsten/SimpleAgent.git
