@@ -6,5 +6,6 @@
     "print_llm_logs": true,
     "print_tool_logs": true,
     "write_to_file": false
-  }
+  },
+  "active_project_path": "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/agent_developer_env/project_1"
 }

@@ -1,5 +1,10 @@
 from SimpleAgent.SimpleAgent.litellm_interface import LitellmInterface
 
+# notes:
+# MVP: agent only edits one file at a time (so no extra logic needed to apply edits, since each file edit is contained in one tool call)
+# Second Iteration: allow agent to edit multiple files (will need to parse which snippets apply to which files, and make multiple predicted output edits.)
+
+
 # Settings to control which backend and mode to use
 settings = {
     "backend": "anthropic",  # "openai" or "anthropic"
