@@ -1,0 +1,118 @@
+body {
+  min-height: 100vh;
+  min-width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #232526 0%, #31363b 100%);
+  margin: 0;
+}
+
+.ttt-root {
+  max-width: 440px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 3rem 2rem 2.5rem 2rem;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 38px;
+  box-shadow: 0 8px 38px 6px #0003;
+  border: 2.4px solid rgba(200, 210, 255, 0.14);
+  backdrop-filter: blur(16px);
+}
+
+h1 {
+  letter-spacing: 5px;
+  font-size: 2.7em;
+  font-weight: 700;
+  color: #BEC8E5;
+  margin-bottom: 1.1rem;
+  margin-top: 0.2em;
+  text-shadow: 0 3px 14px #1e223329;
+}
+
+.status {
+  margin-bottom: 1.2em; /* tighter above board */
+  font-size: 1.32em;
+  min-height: 2.4em;
+  color: #9fa8bb;
+  font-weight: 500;
+  letter-spacing: 1.1px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 95px);
+  grid-template-rows: repeat(3, 95px);
+  gap: 0; /* Remove grid gap for flush grid look */
+  justify-content: center;
+  margin: 0 auto 1.7em auto; /* tighter below board */
+  background: #bfc6de; /* This draws the grid lines behind */
+  border-radius: 20px; /* Makes actual board corners rounded */
+  box-sizing: content-box;
+  padding: 2px; /* Board border for clearer edge */
+}
+
+.square {
+  width: 95px;
+  height: 95px;
+  font-size: 3.1em;
+  font-family: 'Cascadia Code', 'Menlo', 'Consolas', 'monospace';
+  font-weight: bold;
+  background: linear-gradient(135deg, #f1f5fa 40%, #e1e7ef 100%);
+  color: #232942;
+  border: 2.4px solid #a7adc7; /* Darker for visible grid */
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  outline: none;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.17s, color 0.18s, box-shadow 0.18s, border 0.16s;
+}
+
+/* Remove border-radius except board corners */
+.square {
+  border-radius: 0;
+}
+.square:nth-child(1) { border-top-left-radius: 16px; }
+.square:nth-child(3) { border-top-right-radius: 16px; }
+.square:nth-child(7) { border-bottom-left-radius: 16px; }
+.square:nth-child(9) { border-bottom-right-radius: 16px; }
+
+.square.highlight {
+  background: #d2f3e7;
+  border: 2.7px solid #3ed292;
+  color: #16805e;
+  box-shadow: 0 0 16px #3ed29255;
+  z-index: 2;
+}
+
+.status.winner {
+  color: #11c170;
+  font-weight: 700;
+  font-size: 1.4em;
+  text-shadow: 0 1px 8px #03e19134, 0 0 2px #155c3d20;
+}
+
+.status.draw {
+  color: #ffbb44;
+  font-weight: 700;
+  font-size: 1.3em;
+}
+
+.reset-btn {
+  background: linear-gradient(90deg, #6a8cff 25%, #586b97 95%);
+  color: #fff;
+  margin-top: 1em; /* reduced Reset button margin */
+  padding: 1em 3.2em;
+  font-size: 1.22em;
+  border-radius: 28px;
+  border: none;
+  font-weight: 600;
+  letter-spacing: 2px;
+  box-shadow: 0 3px 20px #36488823;
+  transition: background 0.19s;
+}
+.reset-btn:hover {
+  background: linear-gradient(90deg, #3758dc 25%, #445284 95%);
+}

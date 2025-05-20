@@ -1,0 +1,12 @@
+{
+  "logging": {
+    "print_system_logs": true,
+    "print_debug_logs": false,
+    "print_error_logs": true,
+    "print_llm_logs": true,
+    "print_tool_logs": true,
+    "write_to_file": false
+  },
+  "active_project_path": "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/agent_developer_env/landing_page/page_code",
+  "project_doc_path": "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/agent_developer_env/landing_page/docs.txt"
+}

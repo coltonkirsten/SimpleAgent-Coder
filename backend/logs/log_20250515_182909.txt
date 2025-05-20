@@ -1,0 +1,1 @@
+[2025-05-15 18:29:09] < (Unnamed Agent) system> (/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/SimpleAgent/SimpleAgent/litellm_interface.py:36) Agent Unnamed Agent initialized with model openai/gpt-4.1
