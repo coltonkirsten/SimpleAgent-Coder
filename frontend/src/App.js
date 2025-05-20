@@ -25,16 +25,30 @@ function App() {
       if (!isDragging || !appRef.current) return;
       const appRect = appRef.current.getBoundingClientRect();
       let newWidth = e.clientX - appRect.left;
-      // Constraints for resizing
-      const minWidth = 200; // Minimum width for each pane
-      const maxWidth = appRect.width - minWidth - 10; // 10 for grabber width
+      const minPaneSize = 400; // Preferred minimum for each pane
+      const grabberSize = 10;
 
-      if (newWidth < minWidth) newWidth = minWidth;
-      if (newWidth > maxWidth) newWidth = maxWidth;
+      // Calculate the effective min and max for the preview pane
+      const lowerBound = minPaneSize;
+      // Preview pane can be at most total_width - minPaneSize (for chat) - grabberSize
+      const upperBound = appRect.width - minPaneSize - grabberSize;
+
+      // Apply the primary clamping based on preferred minimums
+      if (newWidth < lowerBound) {
+        newWidth = lowerBound;
+      }
+      // This handles if upperBound itself is < lowerBound (window too small for two preferredMinPanes)
+      if (newWidth > upperBound) {
+        newWidth = upperBound;
+      }
+
+      // Final safety net: ensure width is within [0, total_available_for_preview]
+      newWidth = Math.max(0, newWidth);
+      newWidth = Math.min(newWidth, appRect.width - grabberSize);
 
       setPreviewWidth(newWidth);
     },
-    [isDragging]
+    [isDragging] // Removed appRef from deps, it's stable from useRef
   );
 
   useEffect(() => {
@@ -55,19 +69,30 @@ function App() {
     const handleResize = () => {
       if (appRef.current) {
         const appRect = appRef.current.getBoundingClientRect();
-        let newWidth = previewWidth;
-        const minWidth = 200;
-        const grabberWidth = 10;
-        const maxWidth = appRect.width - minWidth - grabberWidth;
+        let adjustedWidth = previewWidth; // Start with current state value
+        const minPaneSize = 200;
+        const grabberSize = 10;
 
-        if (newWidth > maxWidth) {
-          newWidth = maxWidth;
+        const lowerBound = minPaneSize;
+        const upperBound = appRect.width - minPaneSize - grabberSize;
+
+        // If current previewWidth is too small, adjust it up
+        if (adjustedWidth < lowerBound) {
+          adjustedWidth = lowerBound;
         }
-        // Ensure previewWidth + chatWidth doesn't exceed total width
-        if (previewWidth > appRect.width - minWidth - grabberWidth) {
-          newWidth = appRect.width / 2; // Or some other default
+        // If current previewWidth is too large (making other pane too small), adjust it down
+        // This also handles the case where upperBound < lowerBound
+        if (adjustedWidth > upperBound) {
+          adjustedWidth = upperBound;
         }
-        setPreviewWidth(newWidth < minWidth ? minWidth : newWidth);
+
+        // Final safety net for the adjusted width
+        adjustedWidth = Math.max(0, adjustedWidth);
+        adjustedWidth = Math.min(adjustedWidth, appRect.width - grabberSize);
+
+        if (adjustedWidth !== previewWidth) {
+          setPreviewWidth(adjustedWidth);
+        }
       }
     };
     window.addEventListener("resize", handleResize);
@@ -80,6 +105,7 @@ function App() {
     <div className="App" ref={appRef}>
       <div className="app-container">
         <div className="preview-pane" style={{ width: `${previewWidth}px` }}>
+          {isDragging && <div className="drag-overlay"></div>}
           <PreviewWindow />
         </div>
         <div className="grabber" onMouseDown={handleMouseDown}>

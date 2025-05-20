@@ -16,6 +16,7 @@
 
 .preview-pane,
 .chat-pane {
+  position: relative; /* Added for positioning drag-overlay */
   height: 100%;
   overflow: hidden; /* Content within panes will scroll if needed */
   display: flex;
@@ -49,4 +50,14 @@
   height: 50px; /* Height of the pill */
   background-color: #aeaeae; /* Darker grey for the pill */
   border-radius: 3px; /* Make it pill-shaped */
+}
+
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent; /* Invisible */
+  z-index: 20; /* Ensure it's above the iframe content but below grabber if needed */
 }
