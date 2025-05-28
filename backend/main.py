@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from fastapi.responses import StreamingResponse
-from code_agent import prompt_agent
+from code_agent import prompt_agent, reset_conversation
 
 print("< starting backend... >")
 app = FastAPI()
@@ -20,8 +20,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-current_text = "hello world"
 
 class Prompt(BaseModel):
     prompt: str
@@ -39,6 +37,12 @@ async def send_message_stream(payload: Prompt):
         generate(),
         media_type="text/event-stream"
     )
+
+@app.get("/reset_conversation")
+async def reset_conversation():
+    current = reset_conversation()
+    print(current)
+    return {"message": "Conversation reset"}
 
 if __name__ == "__main__":
     print("< backend starting ... >")

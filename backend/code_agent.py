@@ -1,4 +1,5 @@
 from SimpleAgent.SimpleAgent.litellm_interface import LitellmInterface
+import prompts
 import os
 import base64
 from PIL import Image
@@ -16,9 +17,9 @@ Tools = {
 }
 
 # System message for both backends
-system_message = "You are a coding agent, your name is fred. When creating lists, ALWAYS use a plain text vertical list style."
+system_message = prompts.code_agent_system_prompt
 # model = "anthropic/claude-3-7-sonnet-latest"
-model = "openai/gpt-4.1-mini"
+model = "openai/gpt-4.1"
 
 # Create the LitellmInterface instance
 bot = LitellmInterface(
@@ -31,3 +32,7 @@ bot = LitellmInterface(
 
 def prompt_agent(prompt: str, image: str = None):
     return bot.prompt(prompt, image=image)
+
+def reset_conversation():
+    bot.forget()
+    return bot.show_chat()
