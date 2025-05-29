@@ -1,19 +1,27 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { FiSend, FiPaperclip } from "react-icons/fi";
 import { ImSpinner2 } from "react-icons/im";
+import MenuBar from "../MenuBar/MenuBar";
 import "./Chat.css";
 
 const typingAnimationFrames = [".  ", ".. ", "...", ".  ", ".. ", "..."];
 
-function Chat() {
+const Chat = forwardRef(({ onHideChat }, ref) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
   const [typingFrame, setTypingFrame] = useState(0);
@@ -22,6 +30,14 @@ function Chat() {
     useState(null);
   const chatMessagesRef = useRef(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const containerRef = useRef(null);
+
+  // Expose setSelectedImage method to parent
+  useImperativeHandle(ref, () => ({
+    setSelectedImage: (image) => {
+      setSelectedImage(image);
+    },
+  }));
 
   useEffect(() => {
     if (isStreaming) {
@@ -43,6 +59,36 @@ function Chat() {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
     }
   }, [messages, userScrolledUp]);
+
+  const handleMouseMove = (e) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const mouseY = e.clientY - rect.top;
+      setIsMenuVisible(mouseY < 60); // Show menu when mouse is within 60px of top
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsMenuVisible(false);
+  };
+
+  const handleResetChat = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/reset_conversation", {
+        method: "GET",
+      });
+
+      if (response.ok) {
+        // Clear all messages from the chat window
+        setMessages([]);
+        console.log("Chat reset successfully");
+      } else {
+        console.error("Failed to reset conversation");
+      }
+    } catch (error) {
+      console.error("Error resetting conversation:", error);
+    }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -170,7 +216,18 @@ function Chat() {
   };
 
   return (
-    <div className="chat-container">
+    <div
+      className="chat-container"
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <MenuBar
+        type="chat"
+        onResetChat={handleResetChat}
+        onHideChat={onHideChat}
+        isVisible={isMenuVisible}
+      />
       <div
         className="chat-messages"
         ref={chatMessagesRef}
@@ -268,6 +325,6 @@ function Chat() {
       </div>
     </div>
   );
-}
+});
 
 export default Chat;

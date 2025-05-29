@@ -3,7 +3,7 @@
   /* justify-content: center; */ /* We want it to fill the width */
   /* align-items: center; */ /* We want it to fill the height */
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #ededed;
   overflow: hidden; /* Prevent scrollbars on App due to resizing */
 }
 
@@ -14,21 +14,43 @@
   box-sizing: border-box; /* Include padding and border in the element's total width and height */
 }
 
-.preview-pane,
-.chat-pane {
-  position: relative; /* Added for positioning drag-overlay */
+.preview-section {
+  position: relative;
   height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.preview-pane,
+.chat-pane,
+.drawing-pane {
+  position: relative; /* Added for positioning drag-overlay */
   overflow: hidden; /* Content within panes will scroll if needed */
   display: flex;
   flex-direction: column; /* Ensure content inside stretches */
-  padding: 10px; /* Add some padding around the components */
+  padding: 10px; /* Consistent padding for all panels */
   box-sizing: border-box;
+}
+
+.preview-pane {
+  height: 100%; /* Will be adjusted by inline styles when drawing panel is open */
+}
+
+.chat-pane {
+  height: 100%;
+}
+
+.drawing-pane {
+  /* Height will be set by inline styles */
 }
 
 /* To make the components inside panes take full height */
 .preview-pane > div, /* Targets .preview-window-container */
-.chat-pane > div {
-  /* Targets .chat-container */
+.chat-pane > div,
+.drawing-pane > div {
+  /* Targets .chat-container and .drawing-panel */
   flex-grow: 1;
   height: 100%; /* Important for components to fill the pane */
   max-height: calc(100vh - 20px); /* Account for padding in pane */
@@ -50,6 +72,33 @@
   height: 50px; /* Height of the pill */
   background-color: #aeaeae; /* Darker grey for the pill */
   border-radius: 3px; /* Make it pill-shaped */
+}
+
+.show-chat-grabber {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 80px;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px 0 0 10px;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.show-chat-grabber:hover {
+  background-color: rgba(255, 255, 255, 1);
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%) translateX(-2px);
+}
+
+.show-chat-grabber .grabber-pill {
+  background-color: #0084ff;
+  width: 4px;
+  height: 30px;
 }
 
 .drag-overlay {

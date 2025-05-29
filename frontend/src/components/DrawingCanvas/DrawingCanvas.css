@@ -1,0 +1,34 @@
+.drawing-canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.drawing-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.drawing-canvas.eraser {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect x="2" y="8" width="16" height="8" rx="2" fill="%23ff6b6b" stroke="%23000" stroke-width="1"/></svg>')
+      10 10,
+    auto;
+}
+
+.text-input {
+  z-index: 1001;
+  outline: none;
+  border-radius: 3px;
+  font-family: Arial, sans-serif;
+  min-width: 100px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
