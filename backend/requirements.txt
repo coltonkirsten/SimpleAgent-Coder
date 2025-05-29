@@ -4,3 +4,4 @@ python-dotenv
 litellm
 fastapi
 uvicorn
+websockets

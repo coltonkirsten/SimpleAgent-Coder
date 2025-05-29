@@ -27,9 +27,11 @@ const PreviewWindow = forwardRef(
     const [isMenuVisible, setIsMenuVisible] = useState(false);
     const [hasDrawings, setHasDrawings] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+    const [currentProjectName, setCurrentProjectName] = useState(null);
     const containerRef = useRef(null);
     const contentRef = useRef(null);
     const resizeTimeoutRef = useRef(null);
+    const wsRef = useRef(null);
 
     // Debounced resize handler to simulate browser resize behavior
     const triggerProjectResize = useCallback(() => {
@@ -197,6 +199,7 @@ const PreviewWindow = forwardRef(
           );
 
           setProjectContent({ bodyContent, headContent });
+          setCurrentProjectName(fullProjectName);
           setIsProjectModalOpen(false);
           console.log(data.message);
         } else {
@@ -206,6 +209,85 @@ const PreviewWindow = forwardRef(
         console.error("Error getting project content:", error);
       }
     };
+
+    // Function to reload the current project
+    const reloadCurrentProject = useCallback(async () => {
+      if (!currentProjectName) return;
+
+      try {
+        const response = await fetch(
+          "http://localhost:8000/get_project_content",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ full_project_name: currentProjectName }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const { bodyContent, headContent } = processHtmlContent(
+            data.html_content,
+            data.assets_base_url
+          );
+
+          setProjectContent({ bodyContent, headContent });
+          console.log("Project reloaded successfully");
+        } else {
+          console.error("Failed to reload project content");
+        }
+      } catch (error) {
+        console.error("Error reloading project content:", error);
+      }
+    }, [currentProjectName]);
+
+    // WebSocket connection for real-time notifications
+    useEffect(() => {
+      const connectWebSocket = () => {
+        const ws = new WebSocket("ws://localhost:8000/ws");
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          console.log("WebSocket connected for project updates");
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const notification = JSON.parse(event.data);
+            console.log("Received notification:", notification);
+
+            // Auto-reload project on file changes or agent completion
+            if (
+              (notification.type === "file_changed" ||
+                notification.type === "agent_complete") &&
+              currentProjectName
+            ) {
+              console.log("Auto-reloading project due to:", notification.type);
+              reloadCurrentProject();
+            }
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log("WebSocket disconnected, attempting to reconnect...");
+          setTimeout(connectWebSocket, 3000);
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+      };
+
+      connectWebSocket();
+
+      return () => {
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+      };
+    }, [currentProjectName, reloadCurrentProject]);
 
     const handleMouseMove = (e) => {
       if (containerRef.current && !isDrawingPanelOpen) {

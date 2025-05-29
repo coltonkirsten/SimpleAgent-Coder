@@ -4,6 +4,8 @@
 from pathlib import Path
 import json
 import os
+import asyncio
+import requests
 from .active_project_path import load_active_project_path
 
 active_project_path = load_active_project_path()
@@ -28,6 +30,7 @@ def write_file(file_path, contents):
     try:
         with open(file_path, 'w') as file:
             file.write(contents)
+        send_file_change_notification(file_path)
         return 0
     except Exception as e:
         return 3
@@ -71,3 +74,23 @@ def delete_file(file_path):
         return 0
     except Exception as e:
         return 3
+
+def send_file_change_notification(file_path):
+    """Send notification about file changes to connected clients"""
+    try:
+        # Send notification via HTTP to avoid async complications
+        notification_data = {
+            "type": "file_changed",
+            "file_path": file_path,
+            "message": f"File updated: {os.path.basename(file_path)}"
+        }
+        
+        # Post to a notification endpoint (we'll create this)
+        requests.post(
+            "http://localhost:8000/notify_file_change",
+            json=notification_data,
+            timeout=1
+        )
+    except:
+        # Fail silently if notification can't be sent
+        pass

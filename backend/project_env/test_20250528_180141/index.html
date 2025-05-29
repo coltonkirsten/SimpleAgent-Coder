@@ -70,10 +70,44 @@
         opacity: 0.8;
         letter-spacing: 1px;
       }
+      .name-form {
+        margin-bottom: 32px;
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(2px);
+        border-radius: 8px;
+        padding: 1.2em 2em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #181818;
+        max-width: 350px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .name-form label {
+        color: #181818;
+        font-size: 1.15em;
+        margin-right: 8px;
+      }
+      .name-form input[type="text"] {
+        font-size: 1.1em;
+        border: none;
+        border-bottom: 2px solid #333;
+        outline: none;
+        padding: 2px 12px;
+        border-radius: 4px;
+        background: transparent;
+        color: #222;
+        min-width: 90px;
+      }
     </style>
   </head>
   <body>
     <!-- <div class="circle"></div> -->
+    <form id="nameForm" class="name-form" onsubmit="event.preventDefault(); updateGreeting();">
+      <label for="userName">Name:</label>
+      <input type="text" id="userName" name="userName" placeholder="____" />
+    </form>
     <div class="container">
       <h1>Hello, World!</h1>
       <p>
@@ -87,6 +121,16 @@
     <div class="footer">&copy; <span id="year"></span> SimpleAgent Demo</div>
     <script>
       document.getElementById("year").textContent = new Date().getFullYear();
+      function updateGreeting() {
+        const nameInput = document.getElementById('userName');
+        const greeting = document.querySelector('.container h1');
+        const name = nameInput.value.trim();
+        if (name) {
+          greeting.textContent = `Hello, ${name}!`;
+        } else {
+          greeting.textContent = 'Hello, World!';
+        }
+      }
     </script>
   </body>
 </html>

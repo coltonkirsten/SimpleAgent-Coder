@@ -1,12 +1,14 @@
 # main 
 # purpose: interface for frontend to interact with code agent
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 import os
+import asyncio
+import json
 from fastapi.responses import StreamingResponse
 from code_agent import prompt_agent, reset_conversation
 from project_manager import create_project, list_projects, delete_project
@@ -16,6 +18,28 @@ app = FastAPI()
 
 # Project environment path
 PROJECT_ENV_PATH = "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/backend/project_env"
+
+# WebSocket connection manager for notifications
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_notification(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(json.dumps(message))
+            except:
+                # Remove disconnected connections
+                self.active_connections.remove(connection)
+
+manager = ConnectionManager()
 
 # Allow CORS for frontend
 app.add_middleware(
@@ -39,13 +63,33 @@ class ProjectDelete(BaseModel):
 class ProjectContent(BaseModel):
     full_project_name: str
 
+class NotificationData(BaseModel):
+    type: str
+    file_path: str = None
+    message: str
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
 @app.post("/prompt_agent_stream")
 async def send_message_stream(payload: Prompt):
     async def generate():
         # Use generator from LitellmInterface
         for chunk in prompt_agent(payload.prompt, image=payload.image):
             yield chunk
-        # Stream closure will signal completion to the client
+        
+        # Send notification when streaming is complete
+        await manager.send_notification({
+            "type": "agent_complete",
+            "message": "Agent response completed"
+        })
     
     return StreamingResponse(
         generate(),
@@ -119,6 +163,12 @@ async def get_project_content_endpoint(payload: ProjectContent):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading project content: {str(e)}")
+
+@app.post("/notify_file_change")
+async def notify_file_change(notification: NotificationData):
+    """Endpoint to receive file change notifications and broadcast to WebSocket clients"""
+    await manager.send_notification(notification.dict())
+    return {"status": "notification_sent"}
 
 if __name__ == "__main__":
     print("< backend starting ... >")
