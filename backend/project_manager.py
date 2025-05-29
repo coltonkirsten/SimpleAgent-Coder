@@ -38,7 +38,7 @@ def create_project(project_name):
     """
     Creates a project in the folder with the name <project name>_(current datetime string)
     The current datetime string ensures that projects with the same name can be created without overwriting others.
-    In the project folder create an empty index.js file. Then update projects.json with the new project.
+    In the project folder create a basic index.html file. Then update projects.json with the new project.
     
     Args:
         project_name (str): The base name of the project
@@ -61,10 +61,61 @@ def create_project(project_name):
         # Create project directory
         os.makedirs(project_dir)
         
-        # Create empty index.html file
+        # Create basic index.html file
         index_html_path = os.path.join(project_dir, "index.html")
-        with open(index_html_path, 'w') as f:
-            f.write("")
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{project_name}</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        h1 {{
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }}
+        p {{
+            color: #666;
+            line-height: 1.6;
+            text-align: center;
+        }}
+        .welcome {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to {project_name}!</h1>
+        <div class="welcome">
+            <p>This is your new project. Start building something amazing!</p>
+        </div>
+        <p>Edit this file to customize your project. You can add HTML, CSS, and JavaScript to create your web application.</p>
+    </div>
+</body>
+</html>"""
+        
+        with open(index_html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
         
         # Load current projects
         projects = _load_projects()

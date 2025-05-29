@@ -1,13 +1,13 @@
 # main 
 # purpose: interface for frontend to interact with code agent
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 import os
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse
 from code_agent import prompt_agent, reset_conversation
 from project_manager import create_project, list_projects, delete_project
 
@@ -18,7 +18,6 @@ app = FastAPI()
 PROJECT_ENV_PATH = "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/backend/project_env"
 
 # Allow CORS for frontend
-# TODO: do I need this?
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,7 +36,7 @@ class ProjectCreate(BaseModel):
 class ProjectDelete(BaseModel):
     full_project_name: str
 
-class ProjectServe(BaseModel):
+class ProjectContent(BaseModel):
     full_project_name: str
 
 @app.post("/prompt_agent_stream")
@@ -85,29 +84,41 @@ async def delete_project_endpoint(payload: ProjectDelete):
     else:
         raise HTTPException(status_code=400, detail=result)
 
-@app.post("/serve_project")
-async def serve_project_endpoint(payload: ProjectServe):
-    """Start serving a project and return the URL"""
+@app.post("/get_project_content")
+async def get_project_content_endpoint(payload: ProjectContent):
+    """Get the HTML content of a project for direct injection"""
     project_path = os.path.join(PROJECT_ENV_PATH, payload.full_project_name)
     
     if not os.path.exists(project_path):
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Mount the project directory as static files
-    # Remove any existing mount for this path first
+    # Look for index.html file
+    index_file = os.path.join(project_path, "index.html")
+    
+    if not os.path.exists(index_file):
+        raise HTTPException(status_code=404, detail="index.html not found in project")
+    
     try:
-        app.unmount(f"/projects/{payload.full_project_name}")
-    except:
-        pass  # Ignore if mount doesn't exist
-    
-    app.mount(f"/projects/{payload.full_project_name}", StaticFiles(directory=project_path, html=True), name=f"project_{payload.full_project_name}")
-    
-    # Return the URL where the project is served
-    return {
-        "status": "success", 
-        "url": f"http://localhost:8000/projects/{payload.full_project_name}/",
-        "message": f"Project {payload.full_project_name} is now being served"
-    }
+        with open(index_file, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Mount the project for static assets (CSS, JS, images)
+        mount_path = f"/projects/{payload.full_project_name}"
+        try:
+            app.unmount(mount_path)
+        except:
+            pass  # Ignore if mount doesn't exist
+        
+        app.mount(mount_path, StaticFiles(directory=project_path, html=True), name=f"project_{payload.full_project_name}")
+        
+        return {
+            "status": "success",
+            "html_content": html_content,
+            "assets_base_url": f"http://localhost:8000{mount_path}/",
+            "message": f"Project {payload.full_project_name} content retrieved"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading project content: {str(e)}")
 
 if __name__ == "__main__":
     print("< backend starting ... >")

@@ -8,19 +8,14 @@ const ProjectModal = ({ isOpen, onClose, onOpenProject }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Helper function to extract base project name without timestamp
   const parseProjectName = (fullProjectName) => {
-    // Format is: projectName_YYYYMMDD_HHMMSS
-    // Find the last occurrence of underscore followed by date pattern
     const parts = fullProjectName.split("_");
     if (parts.length >= 3) {
-      // Remove the last two parts (date and time)
       return parts.slice(0, -2).join("_");
     }
-    return fullProjectName; // fallback if format doesn't match
+    return fullProjectName;
   };
 
-  // Fetch projects when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchProjects();
@@ -41,23 +36,19 @@ const ProjectModal = ({ isOpen, onClose, onOpenProject }) => {
   };
 
   const createProject = async () => {
-    if (!newProjectName.trim()) {
-      return;
-    }
+    if (!newProjectName.trim()) return;
 
     setIsCreating(true);
     try {
       const response = await fetch("http://localhost:8000/create_project", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_name: newProjectName.trim() }),
       });
 
       if (response.ok) {
         setNewProjectName("");
-        fetchProjects(); // Refresh the list
+        fetchProjects();
       } else {
         console.error("Failed to create project");
       }
@@ -77,14 +68,12 @@ const ProjectModal = ({ isOpen, onClose, onOpenProject }) => {
     try {
       const response = await fetch("http://localhost:8000/delete_project", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ full_project_name: fullProjectName }),
       });
 
       if (response.ok) {
-        fetchProjects(); // Refresh the list
+        fetchProjects();
       } else {
         console.error("Failed to delete project");
       }
@@ -121,7 +110,6 @@ const ProjectModal = ({ isOpen, onClose, onOpenProject }) => {
         </div>
 
         <div className="project-modal-content">
-          {/* Create New Project Section */}
           <div className="create-project-section">
             <h3>Create New Project</h3>
             <div className="create-project-form">
@@ -145,7 +133,6 @@ const ProjectModal = ({ isOpen, onClose, onOpenProject }) => {
             </div>
           </div>
 
-          {/* Projects List Section */}
           <div className="projects-list-section">
             <h3>Existing Projects ({projects.length})</h3>
 
