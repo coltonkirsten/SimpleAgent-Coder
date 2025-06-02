@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <div class="top-bar">
+            <div class="project-info">
+                <h1 id="current-project-name">My First Project</h1>
+            </div>
+            <button class="projects-btn" onclick="openProjectsModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Projects
+            </button>
+        </div>
+        
+        <div class="kanban-board">
+            <div class="column" id="todo">
+                <div class="column-header">
+                    <h2>To Do</h2>
+                    <button class="add-task-btn" onclick="addTask('todo')">+</button>
+                </div>
+                <div class="task-list" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="task" draggable="true" ondragstart="drag(event)">
+                        <div class="task-title">TASK</div>
+                        <div class="task-details">details...</div>
+                        <div class="task-actions">
+                            <button onclick="editTask(this)">Edit</button>
+                            <button onclick="deleteTask(this)">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column" id="inprogress">
+                <div class="column-header">
+                    <h2>In Progress</h2>
+                    <button class="add-task-btn" onclick="addTask('inprogress')">+</button>
+                </div>
+                <div class="task-list" ondrop="drop(event)" ondragover="allowDrop(event)">
+                </div>
+            </div>
+            
+            <div class="column" id="done">
+                <div class="column-header">
+                    <h2>Done</h2>
+                    <button class="add-task-btn" onclick="addTask('done')">+</button>
+                </div>
+                <div class="task-list" ondrop="drop(event)" ondragover="allowDrop(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for adding/editing tasks -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title">Add New Task</h3>
+            <form id="taskForm">
+                <label for="taskTitle">Task Title:</label>
+                <input type="text" id="taskTitle" required>
+                
+                <label for="taskDetails">Details:</label>
+                <textarea id="taskDetails" rows="4"></textarea>
+                
+                <button type="submit">Save Task</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Projects Modal -->
+    <div id="projectsModal" class="modal">
+        <div class="modal-content projects-modal">
+            <span class="close" onclick="closeProjectsModal()">&times;</span>
+            <h3>Projects</h3>
+            
+            <div class="projects-header">
+                <button class="new-project-btn" onclick="showNewProjectForm()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    New Project
+                </button>
+            </div>
+            
+            <div id="new-project-form" class="new-project-form" style="display: none;">
+                <input type="text" id="new-project-name" placeholder="Enter project name..." maxlength="50">
+                <div class="form-actions">
+                    <button onclick="createProject()">Create</button>
+                    <button onclick="hideNewProjectForm()" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+            
+            <div class="projects-list" id="projects-list">
+                <!-- Projects will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

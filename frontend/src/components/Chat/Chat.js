@@ -120,7 +120,12 @@ const Chat = forwardRef(({ onHideChat }, ref) => {
     const userMessage = input;
     const newMessages = [
       ...messages,
-      { id: `user-${Date.now()}`, text: userMessage, sender: "user" },
+      {
+        id: `user-${Date.now()}`,
+        text: userMessage,
+        sender: "user",
+        image: selectedImage,
+      },
     ];
 
     const responseId = `agent-${Date.now()}`;
@@ -268,7 +273,16 @@ const Chat = forwardRef(({ onHideChat }, ref) => {
                       : "")}
                 </ReactMarkdown>
               ) : (
-                message.text
+                <div className="user-message-content">
+                  {message.image && (
+                    <img
+                      src={message.image}
+                      alt="User uploaded"
+                      className="message-image"
+                    />
+                  )}
+                  <div className="user-message-text">{message.text}</div>
+                </div>
               )}
             </div>
           );

@@ -8,9 +8,9 @@ import asyncio
 import requests
 from .active_project_path import load_active_project_path
 
-active_project_path = load_active_project_path()
 
 def verify_file_path(file_path):
+    active_project_path = load_active_project_path()
     """checks if read/modify on allowed path"""
     if not file_path.startswith(active_project_path):
         print(f"Error: tried to read or modify {file_path} which is not on the active project path {active_project_path}.")
@@ -78,11 +78,17 @@ def delete_file(file_path):
 def send_file_change_notification(file_path):
     """Send notification about file changes to connected clients"""
     try:
+        # Get current active project for notification
+        active_project_path = load_active_project_path()
+        active_project_name = os.path.basename(active_project_path) if active_project_path else None
+        
         # Send notification via HTTP to avoid async complications
         notification_data = {
             "type": "file_changed",
             "file_path": file_path,
-            "message": f"File updated: {os.path.basename(file_path)}"
+            "message": f"File updated: {os.path.basename(file_path)}",
+            "active_project_name": active_project_name,
+            "timestamp": os.path.getmtime(file_path) if os.path.exists(file_path) else None
         }
         
         # Post to a notification endpoint (we'll create this)

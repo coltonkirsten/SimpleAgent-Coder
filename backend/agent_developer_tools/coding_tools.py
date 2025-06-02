@@ -10,9 +10,9 @@ import os
 from .utils.file_utils import write_file, read_file, delete_file
 from .utils.active_project_path import load_active_project_path
 
-active_project_path = load_active_project_path()
 
 def write_file_tool(file_path, file_name, contents):
+    active_project_path = load_active_project_path()
     full_path = os.path.join(active_project_path, file_path, file_name)
     
     # Create intermediate directories if they don't exist
@@ -30,6 +30,7 @@ def write_file_tool(file_path, file_name, contents):
         return f"Unknown error writing to file {file_name}"
     
 def read_file_tool(file_path, file_name):
+    active_project_path = load_active_project_path()
     full_path = os.path.join(active_project_path, file_path, file_name)
     result = read_file(full_path)
     if result == 1:
@@ -42,6 +43,7 @@ def read_file_tool(file_path, file_name):
         return result
 
 def delete_file_tool(file_path, file_name):
+    active_project_path = load_active_project_path()
     full_path = os.path.join(active_project_path, file_path, file_name)
     result = delete_file(full_path)
     if result == 0:
@@ -56,6 +58,7 @@ def delete_file_tool(file_path, file_name):
         return f"Unknown error deleting file {file_name}"
 
 def list_project_directory_tool():
+    active_project_path = load_active_project_path()
     """Returns a JSON representation of the project directory structure"""
     try:
         def build_directory_tree(directory):
@@ -106,6 +109,7 @@ def list_project_directory_tool():
         return json.dumps({"error": f"Error listing project directory: {str(e)}"})
 
 def edit_file_tool(file_path, file_name, code_snippet, instructions=None):
+    active_project_path = load_active_project_path()
     """for minor edits, use this tool"""
     full_path = os.path.join(active_project_path, file_path, file_name)
     current_code = read_file(full_path)

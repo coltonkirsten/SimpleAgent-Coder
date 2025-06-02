@@ -28,8 +28,11 @@ const PreviewWindow = forwardRef(
     const [hasDrawings, setHasDrawings] = useState(false);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [currentProjectName, setCurrentProjectName] = useState(null);
+    const [iframeUrl, setIframeUrl] = useState(null);
     const containerRef = useRef(null);
     const contentRef = useRef(null);
+    const iframeRef = useRef(null);
+    const injectedStylesRef = useRef([]);
     const resizeTimeoutRef = useRef(null);
     const wsRef = useRef(null);
 
@@ -166,6 +169,28 @@ const PreviewWindow = forwardRef(
         ".project-content-container $1 {"
       );
 
+      // Handle viewport units - convert 100vh to 100% for container height
+      processedCSS = processedCSS.replace(
+        /min-height:\s*100vh/g,
+        "min-height: 100%"
+      );
+      processedCSS = processedCSS.replace(/height:\s*100vh/g, "height: 100%");
+      processedCSS = processedCSS.replace(
+        /max-height:\s*100vh/g,
+        "max-height: 100%"
+      );
+
+      // Handle full viewport width
+      processedCSS = processedCSS.replace(/width:\s*100vw/g, "width: 100%");
+      processedCSS = processedCSS.replace(
+        /min-width:\s*100vw/g,
+        "min-width: 100%"
+      );
+      processedCSS = processedCSS.replace(
+        /max-width:\s*100vw/g,
+        "max-width: 100%"
+      );
+
       // Scope all other selectors
       processedCSS = processedCSS.replace(/([^{}]+){/g, (match, selector) => {
         if (
@@ -178,6 +203,123 @@ const PreviewWindow = forwardRef(
       });
 
       return processedCSS;
+    };
+
+    // Process relative URLs in CSS content
+    const processRelativeUrlsInCSS = (cssText, baseUrl) => {
+      let processedCSS = cssText;
+
+      // Handle url() functions
+      processedCSS = processedCSS.replace(
+        /url\(['"]?([^'"()]+)['"]?\)/g,
+        (match, url) => {
+          // Skip absolute URLs, data URLs, and URLs that start with protocol
+          if (
+            url.startsWith("http") ||
+            url.startsWith("//") ||
+            url.startsWith("data:") ||
+            url.startsWith("#")
+          ) {
+            return match;
+          }
+
+          try {
+            // Convert relative URL to absolute using the CSS file's base URL
+            const resolvedUrl = new URL(url, baseUrl).href;
+            return `url('${resolvedUrl}')`;
+          } catch (error) {
+            console.warn(`Failed to resolve URL: ${url}`, error);
+            return match; // Return original if URL resolution fails
+          }
+        }
+      );
+
+      // Handle @import statements
+      processedCSS = processedCSS.replace(
+        /@import\s+['"]([^'"]+)['"];?/g,
+        (match, url) => {
+          // Skip absolute URLs
+          if (url.startsWith("http") || url.startsWith("//")) {
+            return match;
+          }
+
+          try {
+            const resolvedUrl = new URL(url, baseUrl).href;
+            return `@import '${resolvedUrl}';`;
+          } catch (error) {
+            console.warn(`Failed to resolve @import URL: ${url}`, error);
+            return match;
+          }
+        }
+      );
+
+      return processedCSS;
+    };
+
+    // Fetch and process external CSS files
+    const processExternalCSS = async (linkElements, baseUrl) => {
+      const processedStyles = [];
+
+      console.log(
+        `Starting to process ${linkElements.length} CSS files with base URL: ${baseUrl}`
+      );
+
+      // Process each CSS file sequentially to maintain load order
+      for (const link of linkElements) {
+        try {
+          const cssUrl = link.getAttribute("href");
+          console.log(`Fetching external CSS: ${cssUrl}`);
+
+          // Add cache busting to prevent stale CSS files
+          const timestamp = new Date().getTime();
+          const cacheBustedUrl = cssUrl.includes("?")
+            ? `${cssUrl}&t=${timestamp}`
+            : `${cssUrl}?t=${timestamp}`;
+
+          const response = await fetch(cacheBustedUrl);
+          if (!response.ok) {
+            console.error(
+              `Failed to fetch CSS file: ${cssUrl}`,
+              response.statusText
+            );
+            continue;
+          }
+
+          let cssContent = await response.text();
+          console.log(
+            `CSS content fetched (${cssContent.length} chars):`,
+            cssContent.substring(0, 200) + "..."
+          );
+
+          // Process relative URLs in the CSS content
+          cssContent = processRelativeUrlsInCSS(cssContent, cssUrl);
+
+          // Process the CSS through our scoping function
+          const scopedCSS = processCSSForInjection(cssContent);
+          console.log(
+            `Scoped CSS (${scopedCSS.length} chars):`,
+            scopedCSS.substring(0, 200) + "..."
+          );
+
+          // Create a style element with the processed CSS
+          const styleElement = document.createElement("style");
+          styleElement.setAttribute("data-source", cssUrl);
+          styleElement.innerHTML = scopedCSS;
+
+          processedStyles.push(styleElement);
+          console.log(`Successfully processed CSS file: ${cssUrl}`);
+        } catch (error) {
+          console.error(
+            `Error processing CSS file: ${link.getAttribute("href")}`,
+            error
+          );
+        }
+      }
+
+      console.log(
+        `Finished processing CSS files. Total processed: ${processedStyles.length}`
+      );
+      return processedStyles;
     };
 
     const handleOpenProject = async (fullProjectName) => {
@@ -198,17 +340,142 @@ const PreviewWindow = forwardRef(
             data.assets_base_url
           );
 
+          // Set iframe URL for normal mode
+          setIframeUrl(`http://localhost:8000/projects/${fullProjectName}/`);
+
+          // Set injection content for drawing mode
           setProjectContent({ bodyContent, headContent });
           setCurrentProjectName(fullProjectName);
           setIsProjectModalOpen(false);
           console.log(data.message);
+
+          // Update active project path in backend settings
+          try {
+            const setActiveResponse = await fetch(
+              "http://localhost:8000/set_active_project",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ full_project_name: fullProjectName }),
+              }
+            );
+
+            if (setActiveResponse.ok) {
+              const activeData = await setActiveResponse.json();
+              console.log(activeData.message);
+
+              // Reset agent conversation to clear previous project context
+              try {
+                const resetResponse = await fetch(
+                  "http://localhost:8000/reset_conversation",
+                  { method: "GET" }
+                );
+
+                if (resetResponse.ok) {
+                  const resetData = await resetResponse.json();
+                  console.log(
+                    "Agent conversation reset for new project:",
+                    resetData.message
+                  );
+                } else {
+                  console.warn("Failed to reset agent conversation");
+                }
+              } catch (resetError) {
+                console.warn("Error resetting agent conversation:", resetError);
+              }
+            } else {
+              console.error("Failed to set active project");
+              alert(
+                "Warning: Failed to set active project in backend settings"
+              );
+            }
+          } catch (activeError) {
+            console.error("Error setting active project:", activeError);
+            alert(
+              "Warning: Could not update active project in backend settings"
+            );
+          }
         } else {
           console.error("Failed to get project content");
+          alert("Failed to open project. Please try again.");
         }
       } catch (error) {
         console.error("Error getting project content:", error);
+        alert(
+          "Error opening project. Please check your connection and try again."
+        );
       }
     };
+
+    // Function to verify project synchronization between frontend and backend
+    const verifyProjectSync = useCallback(async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/get_active_project"
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const backendActiveProject = data.active_project_name;
+
+          if (backendActiveProject !== currentProjectName) {
+            console.warn("Project synchronization mismatch detected!");
+            console.warn(`Frontend project: ${currentProjectName}`);
+            console.warn(`Backend project: ${backendActiveProject}`);
+
+            if (backendActiveProject && currentProjectName) {
+              // Ask user if they want to sync or not
+              const shouldSync = window.confirm(
+                `Synchronization issue detected!\n\n` +
+                  `Frontend is showing: ${currentProjectName}\n` +
+                  `Backend is working on: ${backendActiveProject}\n\n` +
+                  `Would you like to switch to the backend's active project (${backendActiveProject})?`
+              );
+
+              if (shouldSync) {
+                // Switch to backend's active project by reloading the page
+                // This ensures clean state management
+                alert(
+                  `Switching to project: ${backendActiveProject}. Please reopen the project from Project Manager.`
+                );
+                setCurrentProjectName(null);
+                setIframeUrl(null);
+                setProjectContent(null);
+              } else {
+                // Update backend to match frontend
+                try {
+                  const setActiveResponse = await fetch(
+                    "http://localhost:8000/set_active_project",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        full_project_name: currentProjectName,
+                      }),
+                    }
+                  );
+
+                  if (setActiveResponse.ok) {
+                    console.log("Backend updated to match frontend project");
+                  }
+                } catch (updateError) {
+                  console.error(
+                    "Failed to update backend project:",
+                    updateError
+                  );
+                }
+              }
+            }
+          } else {
+            console.log("Projects are in sync:", currentProjectName);
+          }
+        } else {
+          console.error("Failed to verify project sync");
+        }
+      } catch (error) {
+        console.error("Error verifying project sync:", error);
+      }
+    }, [currentProjectName]);
 
     // Function to reload the current project
     const reloadCurrentProject = useCallback(async () => {
@@ -231,6 +498,28 @@ const PreviewWindow = forwardRef(
             data.assets_base_url
           );
 
+          // Reload iframe for normal mode with cache busting
+          if (iframeRef.current && !isDrawingPanelOpen) {
+            const baseUrl = `http://localhost:8000/projects/${currentProjectName}/`;
+            const timestamp = new Date().getTime();
+            const newUrl = `${baseUrl}?t=${timestamp}`;
+
+            // Force aggressive iframe reload by clearing src first
+            console.log("Forcing complete iframe reload with cache busting");
+
+            // Method 1: Clear src and set new URL to force complete reload
+            iframeRef.current.src = "about:blank";
+
+            // Small delay to ensure the blank page loads before setting new URL
+            setTimeout(() => {
+              if (iframeRef.current) {
+                iframeRef.current.src = newUrl;
+                console.log(`Iframe reloaded with cache-busted URL: ${newUrl}`);
+              }
+            }, 10);
+          }
+
+          // Update injection content for drawing mode
           setProjectContent({ bodyContent, headContent });
           console.log("Project reloaded successfully");
         } else {
@@ -239,7 +528,7 @@ const PreviewWindow = forwardRef(
       } catch (error) {
         console.error("Error reloading project content:", error);
       }
-    }, [currentProjectName]);
+    }, [currentProjectName, isDrawingPanelOpen]);
 
     // WebSocket connection for real-time notifications
     useEffect(() => {
@@ -256,14 +545,49 @@ const PreviewWindow = forwardRef(
             const notification = JSON.parse(event.data);
             console.log("Received notification:", notification);
 
-            // Auto-reload project on file changes or agent completion
+            // Auto-reload project on file changes or agent completion with project verification
             if (
               (notification.type === "file_changed" ||
                 notification.type === "agent_complete") &&
               currentProjectName
             ) {
-              console.log("Auto-reloading project due to:", notification.type);
-              reloadCurrentProject();
+              // Verify that the notification is for the current project
+              if (notification.active_project_name) {
+                if (notification.active_project_name === currentProjectName) {
+                  console.log(
+                    "Auto-reloading project due to:",
+                    notification.type
+                  );
+                  console.log(
+                    "Notification project matches current project:",
+                    currentProjectName
+                  );
+                  console.log("Current drawing mode:", isDrawingPanelOpen);
+                  reloadCurrentProject();
+                } else {
+                  console.warn(
+                    `Notification for project "${notification.active_project_name}" but current project is "${currentProjectName}". Skipping reload.`
+                  );
+                  console.warn(
+                    "This suggests a synchronization issue between frontend and backend."
+                  );
+
+                  // Verify current active project with backend
+                  verifyProjectSync();
+                }
+              } else {
+                // Legacy notification without project info - proceed with caution
+                console.warn(
+                  "Received notification without project information, proceeding with reload"
+                );
+                console.log(
+                  "Auto-reloading project due to:",
+                  notification.type
+                );
+                console.log("Current drawing mode:", isDrawingPanelOpen);
+                console.log("Current project:", currentProjectName);
+                reloadCurrentProject();
+              }
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -343,54 +667,187 @@ const PreviewWindow = forwardRef(
       }
     }, [isDrawingPanelOpen]);
 
-    // Inject content into the isolated container
+    // Cleanup function to remove injected styles
+    const cleanupInjectedStyles = useCallback(() => {
+      // Remove all styles with data-injected attribute
+      const injectedStyles = document.querySelectorAll(
+        'style[data-injected="true"]'
+      );
+      injectedStyles.forEach((style) => {
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      });
+      injectedStylesRef.current = [];
+      console.log(`Cleaned up ${injectedStyles.length} injected styles`);
+    }, []);
+
+    // Inject content into the isolated container (only for drawing mode)
     useEffect(() => {
-      if (projectContent && contentRef.current) {
-        contentRef.current.innerHTML = "";
+      const injectContent = async () => {
+        console.log(
+          "injectContent called - Drawing mode:",
+          isDrawingPanelOpen,
+          "Project:",
+          currentProjectName
+        );
 
-        const isolatedContainer = document.createElement("div");
-        isolatedContainer.className = "project-content-container";
+        if (projectContent && contentRef.current && isDrawingPanelOpen) {
+          console.log("Starting content injection...");
 
-        if (projectContent.headContent) {
-          const headElement = document.createElement("div");
-          headElement.innerHTML = projectContent.headContent;
+          // Clean up any previously injected styles
+          cleanupInjectedStyles();
 
-          // Process styles
-          headElement.querySelectorAll("style").forEach((style) => {
-            const processedCSS = processCSSForInjection(style.innerHTML);
-            const newStyle = document.createElement("style");
-            newStyle.innerHTML = processedCSS;
-            document.head.appendChild(newStyle);
-          });
+          contentRef.current.innerHTML = "";
 
-          // Process external CSS
-          headElement
-            .querySelectorAll('link[rel="stylesheet"]')
-            .forEach((link) => {
-              document.head.appendChild(link.cloneNode(true));
+          const isolatedContainer = document.createElement("div");
+          isolatedContainer.className = "project-content-container";
+          const newInjectedStyles = [];
+
+          if (projectContent.headContent) {
+            console.log("Processing head content...");
+            const headElement = document.createElement("div");
+            headElement.innerHTML = projectContent.headContent;
+
+            // Process inline styles
+            const inlineStyles = headElement.querySelectorAll("style");
+            console.log(`Found ${inlineStyles.length} inline styles`);
+            inlineStyles.forEach((style) => {
+              const processedCSS = processCSSForInjection(style.innerHTML);
+              const newStyle = document.createElement("style");
+              newStyle.setAttribute("data-injected", "true");
+              newStyle.setAttribute("data-type", "inline");
+              newStyle.innerHTML = processedCSS;
+              document.head.appendChild(newStyle);
+              newInjectedStyles.push(newStyle);
             });
 
-          // Process scripts
-          headElement.querySelectorAll("script").forEach((script) => {
-            const newScript = document.createElement("script");
-            if (script.src) {
-              newScript.src = script.src;
-            } else {
-              newScript.textContent = script.textContent;
+            // Process external CSS files
+            const linkElements = Array.from(
+              headElement.querySelectorAll('link[rel="stylesheet"]')
+            );
+            console.log(`Found ${linkElements.length} external CSS files`);
+
+            if (linkElements.length > 0) {
+              try {
+                const baseUrl = `http://localhost:8000/projects/${currentProjectName}/`;
+                console.log("Processing external CSS with base URL:", baseUrl);
+                const processedStyles = await processExternalCSS(
+                  linkElements,
+                  baseUrl
+                );
+
+                // Inject processed styles into document head and track them
+                processedStyles.forEach((styleElement) => {
+                  styleElement.setAttribute("data-injected", "true");
+                  styleElement.setAttribute("data-type", "external");
+                  document.head.appendChild(styleElement);
+                  newInjectedStyles.push(styleElement);
+                });
+
+                console.log(
+                  `Successfully injected ${processedStyles.length} external CSS files`
+                );
+              } catch (error) {
+                console.error("Error processing external CSS files:", error);
+              }
             }
-            isolatedContainer.appendChild(newScript);
-          });
+
+            // Update ref with new injected styles
+            injectedStylesRef.current = newInjectedStyles;
+            console.log(`Total styles injected: ${newInjectedStyles.length}`);
+
+            // Process scripts
+            headElement.querySelectorAll("script").forEach((script) => {
+              const newScript = document.createElement("script");
+              if (script.src) {
+                newScript.src = script.src;
+              } else {
+                newScript.textContent = script.textContent;
+              }
+              isolatedContainer.appendChild(newScript);
+            });
+          }
+
+          isolatedContainer.innerHTML += projectContent.bodyContent;
+          contentRef.current.appendChild(isolatedContainer);
+          console.log("Content injection completed");
+
+          // Trigger resize event after content is loaded and when switching to drawing mode
+          setTimeout(() => {
+            triggerProjectResize();
+
+            // Dispatch window resize event to the injected content
+            const resizeEvent = new Event("resize");
+            window.dispatchEvent(resizeEvent);
+
+            // Update viewport meta tag if it exists in injected content
+            const viewportMeta = isolatedContainer.querySelector(
+              'meta[name="viewport"]'
+            );
+            if (viewportMeta) {
+              viewportMeta.setAttribute(
+                "content",
+                "width=device-width, initial-scale=1.0"
+              );
+            }
+
+            // Force layout recalculation
+            if (isolatedContainer) {
+              isolatedContainer.style.height = "100%";
+              isolatedContainer.style.width = "100%";
+              // Force reflow
+              // eslint-disable-next-line no-unused-expressions
+              isolatedContainer.offsetHeight;
+            }
+          }, 50);
         }
+      };
 
-        isolatedContainer.innerHTML += projectContent.bodyContent;
-        contentRef.current.appendChild(isolatedContainer);
+      injectContent();
+    }, [
+      projectContent,
+      isDrawingPanelOpen,
+      triggerProjectResize,
+      currentProjectName,
+    ]);
 
-        // Trigger resize event after content is loaded
+    // Additional effect to handle resize when switching to drawing mode
+    useEffect(() => {
+      if (isDrawingPanelOpen && contentRef.current) {
+        // Small delay to allow the panel transition to complete
         setTimeout(() => {
           triggerProjectResize();
-        }, 50);
+
+          // Dispatch resize events to help responsive content adapt
+          const resizeEvent = new Event("resize");
+          window.dispatchEvent(resizeEvent);
+
+          // Also dispatch a custom event for any content that might be listening
+          const customResizeEvent = new CustomEvent("containerResize", {
+            detail: {
+              width: contentRef.current.clientWidth,
+              height: contentRef.current.clientHeight,
+            },
+          });
+          window.dispatchEvent(customResizeEvent);
+        }, 150);
       }
-    }, [projectContent, triggerProjectResize]);
+    }, [isDrawingPanelOpen, triggerProjectResize]);
+
+    // Cleanup styles when exiting drawing mode
+    useEffect(() => {
+      if (!isDrawingPanelOpen) {
+        cleanupInjectedStyles();
+      }
+    }, [isDrawingPanelOpen, cleanupInjectedStyles]);
+
+    // Cleanup injected styles on unmount
+    useEffect(() => {
+      return () => {
+        cleanupInjectedStyles();
+      };
+    }, [cleanupInjectedStyles]);
 
     useImperativeHandle(ref, () => ({
       captureScreenshot: handleFinishDrawing,
@@ -416,13 +873,29 @@ const PreviewWindow = forwardRef(
             isDrawingPanelOpen ? "drawing-mode" : ""
           }`}
         >
-          {projectContent ? (
-            <div
-              ref={contentRef}
-              className={`project-content-wrapper ${
-                isDrawingPanelOpen ? "drawing-mode" : ""
-              }`}
-            ></div>
+          {iframeUrl ? (
+            <>
+              {/* Normal mode: Show iframe */}
+              {!isDrawingPanelOpen && (
+                <iframe
+                  ref={iframeRef}
+                  src={iframeUrl}
+                  className="project-iframe"
+                  title="Project Preview"
+                  frameBorder="0"
+                />
+              )}
+
+              {/* Drawing mode: Show injection */}
+              {isDrawingPanelOpen && (
+                <div
+                  ref={contentRef}
+                  className={`project-content-wrapper ${
+                    isDrawingPanelOpen ? "drawing-mode" : ""
+                  }`}
+                ></div>
+              )}
+            </>
           ) : (
             <div className="no-preview-message">
               Open the Project Manager and click the arrow button to preview a

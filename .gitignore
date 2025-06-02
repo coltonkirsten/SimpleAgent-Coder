@@ -1,3 +1,5 @@
 .env
 node_modules/
 .DS_Store
+.cursor/rules
+Agent_Notes_Archive
