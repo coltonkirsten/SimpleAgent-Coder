@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cool Kanban Board</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Cool Kanban Board</h1>
+    <div class="toolbar">
+      <button id="newTaskBtn" class="btn">New Task</button>
+    </div>
+  </header>
+
+  <div id="board" class="board" aria-label="Kanban board with columns: Backlog, In Progress, Done">
+    <section class="column" data-status="backlog">
+      <h2 class="column-title">Backlog</h2>
+      <div class="column-dropzone" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'backlog')"></div>
+      <div class="column-footer"><span class="count" id="backlogCount"></span></div>
+    </section>
+    <section class="column" data-status="in-progress">
+      <h2 class="column-title">In Progress</h2>
+      <div class="column-dropzone" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'in-progress')"></div>
+      <div class="column-footer"><span class="count" id="inprogressCount"></span></div>
+    </section>
+    <section class="column" data-status="done">
+      <h2 class="column-title">Done</h2>
+      <div class="column-dropzone" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'done')"></div>
+      <div class="column-footer"><span class="count" id="doneCount"></span></div>
+    </section>
+  </div>
+
+  <!-- New Task Modal -->
+  <div id="modal" class="modal" aria-hidden="true" role="dialog" aria-label="Create new task">
+    <div class="modal-content">
+      <h3>New Task</h3>
+      <form id="taskForm">
+        <label>Title
+          <input type="text" id="taskTitle" required/>
+        </label>
+        <label>Description
+          <textarea id="taskDesc"></textarea>
+        </label>
+        <label>Column
+          <select id="taskColumn">
+            <option value="backlog">Backlog</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </label>
+        <label>Tag Color
+          <input type="color" id="taskColor" value="#8bc34a"/>
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="cancelBtn" class="btn secondary">Cancel</button>
+          <button type="submit" class="btn">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Data store
+    const STORAGE_KEY = 'kanban_tasks_v1';
+    const statuses = ['backlog','in-progress','done'];
+    let tasks = [];
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function load() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try { tasks = JSON.parse(raw); } catch(e) { tasks = []; }
+      }
+      if (!tasks.length) {
+        // seed sample tasks
+        tasks = [
+          {id: 't1', title: 'Design landing page', description: 'Create hero section with gradient', status: 'backlog', color: '#6C5CE7'},
+          {id: 't2', title: 'API integration', description: 'Connect to /api/v1/tasks', status: 'in-progress', color: '#00C853'},
+          {id: 't4', title: 'Deploy app', description: 'Push to production', status: 'done', color: '#3F51B5'},
+        ];
+      }
+    }
+
+    function render() {
+      // Clear existing cards
+      statuses.forEach(s => {
+        const drop = document.querySelector(`.column[data-status="${s}"] .column-dropzone`);
+        if (drop) drop.innerHTML = '';
+      });
+      // Create cards
+      tasks.forEach(t => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.draggable = true;
+        card.dataset.id = t.id;
+        card.style.borderLeft = `6px solid ${t.color || '#888'}`;
+        card.addEventListener('dragstart', onDragStart);
+        card.innerHTML = `
+          <div class="card-title">${t.title}</div>
+          ${t.description ? `<div class="card-desc">${t.description}</div>` : ''}
+          <button class="btn btn-icon" title="Delete" onclick="deleteTask('${t.id}')">✕</button>
+        `;
+        const dropzone = document.querySelector(`.column[data-status="${t.status}"] .column-dropzone`);
+        if (dropzone) dropzone.appendChild(card);
+      });
+
+      // Update counts
+      document.getElementById('backlogCount').textContent = tasks.filter(t => t.status === 'backlog').length;
+      document.getElementById('inprogressCount').textContent = tasks.filter(t => t.status === 'in-progress').length;
+      document.getElementById('doneCount').textContent = tasks.filter(t => t.status === 'done').length;
+    }
+
+    function onDragStart(e) {
+      const id = e.currentTarget.dataset.id;
+      e.dataTransfer.setData('text/plain', id);
+      e.currentTarget.classList.add('dragging');
+    }
+
+    function allowDrop(e) {
+      e.preventDefault();
+    }
+
+    function handleDrop(e, status) {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      const task = tasks.find(t => t.id === id);
+      if (task && task.status !== status) {
+        task.status = status;
+        save();
+        render();
+      }
+      const dragging = document.querySelector('.dragging');
+      if (dragging) dragging.classList.remove('dragging');
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(t => t.id !== id);
+      save();
+      render();
+    }
+
+    // Modal helpers
+    const modal = document.getElementById('modal');
+    const newTaskBtn = document.getElementById('newTaskBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const taskForm = document.getElementById('taskForm');
+
+    function openModal() {
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden','false');
+      // Focus first input
+      document.getElementById('taskTitle').focus();
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden','true');
+      taskForm.reset();
+    }
+
+    // Form submission
+    taskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('taskTitle').value.trim();
+      if (!title) return;
+      const description = document.getElementById('taskDesc').value.trim();
+      const status = document.getElementById('taskColumn').value;
+      const color = document.getElementById('taskColor').value;
+      const id = 't' + Math.random().toString(36).slice(2,7);
+      const newTask = { id, title, description, status, color };
+      tasks.push(newTask);
+      save();
+      render();
+      closeModal();
+    });
+
+    newTaskBtn.addEventListener('click', openModal);
+    cancelBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Init
+    load();
+    render();
+  </script>
+</body>
+</html>

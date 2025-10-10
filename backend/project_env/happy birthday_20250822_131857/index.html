@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Birthday Message for Your Dog</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="card" aria-label="Birthday message for your dog">
+    <h1>Happy Birthday, <span id="namePlaceholder">your best friend</span>! 🐾</h1>
+    <p id="message" aria-live="polite">
+      Today is all about wagging tails, sunny park adventures, and delicious treats. May your day be filled with fetch, belly rubs, and endless squeaky toys. You bring so much joy to everyone around you, especially your human who loves you to the moon and back.
+    </p>
+    <div class="controls">
+      <label for="dogName" class="visually-hidden">Dog's name</label>
+      <input id="dogName" type="text" placeholder="Enter your dog's name (optional)" aria-label="Dog's name" />
+      <button id="personalizeBtn" type="button" class="primary">Personalize Message</button>
+      <button id="copyBtn" type="button" class="secondary" aria-label="Copy message to clipboard">Copy Message</button>
+    </div>
+    <div id="toast" class="toast" aria-live="polite" role="status" hidden>Copied!</div>
+  </main>
+
+  <script>
+    (function() {
+      var nameInput = document.getElementById('dogName');
+      var titleEl = document.getElementById('namePlaceholder');
+      var msgEl = document.getElementById('message');
+      var btn = document.getElementById('personalizeBtn');
+      var copyBtn = document.getElementById('copyBtn');
+      var toast = document.getElementById('toast');
+
+      btn.addEventListener('click', function(){
+        var name = (nameInput.value || '').trim();
+        var toShow = name ? name : 'your best friend';
+        titleEl.textContent = toShow;
+        if (name) {
+          msgEl.innerHTML = 'Today is all about wagging tails, sunny park adventures, and delicious treats for <strong>' + name + '</strong>. May your day be filled with fetch, belly rubs, and squeaky toys. You bring so much joy to everyone around you, especially your human who loves you to the moon and back.';
+        } else {
+          msgEl.textContent = 'Today is all about wagging tails, sunny park adventures, and delicious treats. May your day be filled with fetch, belly rubs, and squeaky toys. You bring so much joy to everyone around you, especially your human who loves you to the moon and back.';
+        }
+      });
+
+      copyBtn.addEventListener('click', function(){
+        var text = msgEl.innerText || msgEl.textContent;
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(function(){
+            showToast();
+          }, function(){ showToast('Copy failed'); });
+        } else {
+          fallbackCopy(text);
+        }
+      });
+
+      function fallbackCopy(text){
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand('copy'); showToast(); } catch(err) { showToast('Copy failed'); }
+        document.body.removeChild(ta);
+      }
+
+      function showToast(message){
+        toast.textContent = message || 'Copied!';
+        toast.hidden = false;
+        setTimeout(function(){ toast.hidden = true; }, 1500);
+      }
+    })();
+  </script>
+</body>
+</html>

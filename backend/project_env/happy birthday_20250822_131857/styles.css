@@ -1,0 +1,40 @@
+:root{
+  --bg: #f8f5ff;
+  --card: #ffffff;
+  --text: #1f1f1f;
+  --accent: #6c5ce7;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: linear-gradient(135deg, #f7f3ff 0%, #e5f0ff 100%);
+  color:var(--text);
+}
+.card{
+  width:min(90%, 600px);
+  margin:5vh auto;
+  padding:2rem;
+  background:var(--card);
+  border-radius:1.25rem;
+  box-shadow:0 10px 25px rgba(0,0,0,.08);
+  text-align:center;
+}
+h1{font-size:clamp(1.8rem, 4vw, 3rem); margin:0 0 .75rem}
+p{font-size:1.05rem; line-height:1.6}
+.controls{margin-top:1rem; display:flex; gap:.5rem; justify-content:center; align-items:center}
+input{padding:.6rem 0.75rem; border-radius:.5rem; border:1px solid #ddd; min-width:260px}
+button{padding:.6rem 1rem; border-radius:.5rem; border:0; background:var(--accent); color:white; cursor:pointer}
+.visually-hidden{position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden}
+@media (max-width:420px){
+  .card{width:92%; padding:1.25rem}
+  input{width:100%;}
+  .controls{flex-direction:column;}
+}
+
+/* Added styling for button variants and toast notification */
+button.primary{ background: var(--accent); }
+button.secondary{ background: #e5e5e5; color: #333; }
+.toast{ display:inline-block; padding:0.5rem 0.75rem; background:#333; color:#fff; border-radius:0.5rem; margin-left:0.5rem; font-size:0.9rem; }
+.toast[hidden]{ display:none; }

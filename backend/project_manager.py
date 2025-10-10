@@ -10,7 +10,7 @@ import shutil
 from datetime import datetime
 
 # Project environment path
-PROJECT_ENV_PATH = "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/backend/project_env"
+PROJECT_ENV_PATH = "/Users/coltonkirsten/Desktop/Projects/GenUI Playground/SeniorThesis/SimpleAgent-coder/backend/project_env"
 PROJECTS_JSON_PATH = os.path.join(PROJECT_ENV_PATH, "projects.json")
 
 def _load_projects():

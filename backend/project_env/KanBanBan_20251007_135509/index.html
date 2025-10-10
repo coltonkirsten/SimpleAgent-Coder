@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minimal Kanban</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1 class="title">Kanban</h1>
+    <div class="header-actions">
+      <div class="project-controls" aria-label="Project controls">
+        <select id="projectSelect" class="project-select" title="Choose project" aria-label="Choose project"></select>
+        <button id="newProject" class="icon-btn" title="New project" aria-label="New project">＋</button>
+        <div class="menu-wrap">
+          <button id="projectMenuBtn" class="icon-btn" title="Project menu" aria-haspopup="menu" aria-expanded="false">⋯</button>
+          <div id="projectMenu" class="menu" role="menu" aria-hidden="true">
+            <button class="menu-item" data-action="rename" role="menuitem">Rename</button>
+            <button class="menu-item" data-action="duplicate" role="menuitem">Duplicate</button>
+            <button class="menu-item" data-action="export" role="menuitem">Export JSON</button>
+            <button class="menu-item" data-action="import" role="menuitem">Import JSON</button>
+            <hr>
+            <button class="menu-item danger" data-action="delete" role="menuitem">Delete project</button>
+          </div>
+          <input id="importInput" type="file" accept="application/json" hidden>
+        </div>
+      </div>
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="icon">☀️</span>
+      </button>
+      <button id="clearAll" class="text-btn" aria-label="Clear board" title="Clear board">Clear</button>
+    </div>
+  </header>
+
+  <main class="board" id="board" aria-label="Kanban board">
+    <section class="column" data-column="todo" aria-labelledby="todo-title">
+      <header class="column-header" style="--accent: var(--accent-todo)">
+        <h2 id="todo-title" class="column-title">To do <span class="count" data-count="todo">0</span></h2>
+        <button class="icon-btn add-btn" data-action="show-add" title="Add card to To do" aria-label="Add card to To do">＋</button>
+      </header>
+      <div class="cards" data-cards="todo" role="list"></div>
+      <div class="add-area" data-add-area="todo"></div>
+    </section>
+
+    <section class="column" data-column="progress" aria-labelledby="progress-title">
+      <header class="column-header" style="--accent: var(--accent-progress)">
+        <h2 id="progress-title" class="column-title">In progress <span class="count" data-count="progress">0</span></h2>
+        <button class="icon-btn add-btn" data-action="show-add" title="Add card to In progress" aria-label="Add card to In progress">＋</button>
+      </header>
+      <div class="cards" data-cards="progress" role="list"></div>
+      <div class="add-area" data-add-area="progress"></div>
+    </section>
+
+    <section class="column" data-column="done" aria-labelledby="done-title">
+      <header class="column-header" style="--accent: var(--accent-done)">
+        <h2 id="done-title" class="column-title">Done <span class="count" data-count="done">0</span></h2>
+        <button class="icon-btn add-btn" data-action="show-add" title="Add card to Done" aria-label="Add card to Done">＋</button>
+      </header>
+      <div class="cards" data-cards="done" role="list"></div>
+      <div class="add-area" data-add-area="done"></div>
+    </section>
+  </main>
+
+  <template id="card-template">
+    <article class="card" draggable="true" role="listitem">
+      <div class="card-text"></div>
+      <button class="icon-btn delete-btn" title="Delete" aria-label="Delete">×</button>
+    </article>
+  </template>
+
+  <template id="add-template">
+    <div class="add-card">
+      <textarea rows="2" class="add-input" placeholder="Write a task..."></textarea>
+      <div class="add-actions">
+        <button class="primary-btn" data-action="add">Add</button>
+        <button class="text-btn" data-action="cancel">Cancel</button>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    (function () {
+      const PROJECTS_KEY = 'kanban-projects-v1';
+      const THEME_KEY = 'kanban-theme';
+      const columns = ['todo', 'progress', 'done'];
+
+      const els = {
+        board: document.getElementById('board'),
+        counts: {
+          todo: document.querySelector('[data-count="todo"]'),
+          progress: document.querySelector('[data-count="progress"]'),
+          done: document.querySelector('[data-count="done"]'),
+        },
+        lists: {
+          todo: document.querySelector('[data-cards="todo"]'),
+          progress: document.querySelector('[data-cards="progress"]'),
+          done: document.querySelector('[data-cards="done"]'),
+        },
+        addAreas: {
+          todo: document.querySelector('[data-add-area="todo"]'),
+          progress: document.querySelector('[data-add-area="progress"]'),
+          done: document.querySelector('[data-add-area="done"]'),
+        },
+        cardTpl: document.getElementById('card-template'),
+        addTpl: document.getElementById('add-template'),
+        themeToggle: document.getElementById('themeToggle'),
+        clearAll: document.getElementById('clearAll'),
+        projectSelect: document.getElementById('projectSelect'),
+        newProject: document.getElementById('newProject'),
+        projectMenuBtn: document.getElementById('projectMenuBtn'),
+        projectMenu: document.getElementById('projectMenu'),
+        importInput: document.getElementById('importInput'),
+      };
+
+      // Data model: { activeId: string, projects: [{id, name, data}] }
+      let model = loadProjects();
+      if (!model || !model.projects || model.projects.length === 0) {
+        const p = createProject('My project', getDefaultState());
+        model = { activeId: p.id, projects: [p] };
+        saveProjects();
+      }
+      let active = getActiveProject();
+      let state = active.data; // reference to active project's board
+      let drag = { id: null, from: null, placeholder: null };
+
+      initTheme();
+      populateProjectSelect();
+      renderAll();
+      attachGlobalHandlers();
+
+      function getDefaultState() {
+        return {
+          todo: [
+            makeCard('Sketch wireframes'),
+            makeCard('Write tiny project brief'),
+          ],
+          progress: [
+            makeCard('Build minimal UI'),
+          ],
+          done: [
+            makeCard('Plan columns'),
+          ],
+        };
+      }
+
+      function emptyState() { return { todo: [], progress: [], done: [] }; }
+
+      function makeCard(text) {
+        return { id: 'c_' + Math.random().toString(36).slice(2, 9), text: text.trim() };
+      }
+
+      function createProject(name, data) {
+        return { id: 'p_' + Math.random().toString(36).slice(2, 9), name: (name || 'Untitled').trim() || 'Untitled', data: data || emptyState() };
+      }
+
+      function saveProjects() {
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(model));
+      }
+
+      function loadProjects() {
+        try {
+          const raw = localStorage.getItem(PROJECTS_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (_) { return null; }
+      }
+
+      function getActiveProject() {
+        return model.projects.find(p => p.id === model.activeId) || model.projects[0];
+      }
+
+      function setActiveProject(id) {
+        model.activeId = id;
+        active = getActiveProject();
+        state = active.data;
+        saveProjects();
+        renderAll();
+        updateCounts();
+        selectActiveInUI();
+      }
+
+      function selectActiveInUI() {
+        if (els.projectSelect) els.projectSelect.value = active.id;
+      }
+
+      function populateProjectSelect() {
+        const sel = els.projectSelect;
+        sel.innerHTML = '';
+        model.projects.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id; opt.textContent = p.name;
+          sel.appendChild(opt);
+        });
+        selectActiveInUI();
+      }
+
+      function renderAll() {
+        columns.forEach(renderColumn);
+        updateCounts();
+      }
+
+      function renderColumn(key) {
+        const list = els.lists[key];
+        list.innerHTML = '';
+
+        state[key].forEach(card => {
+          const node = els.cardTpl.content.firstElementChild.cloneNode(true);
+          node.dataset.id = card.id;
+          node.querySelector('.card-text').textContent = card.text;
+
+          node.addEventListener('dragstart', onDragStart);
+          node.addEventListener('dragend', onDragEnd);
+          node.addEventListener('dblclick', () => startInlineEdit(node, key, card.id));
+          node.querySelector('.delete-btn').addEventListener('click', () => {
+            removeCard(key, card.id);
+          });
+
+          list.appendChild(node);
+        });
+
+        list.addEventListener('dragover', (e) => onDragOver(e, key));
+        list.addEventListener('drop', (e) => onDrop(e, key));
+        list.addEventListener('dragleave', (e) => onDragLeave(e, key));
+
+        const area = els.addAreas[key];
+        area.innerHTML = '';
+        const addBtn = document.createElement('button');
+        addBtn.className = 'add-inline';
+        addBtn.textContent = '+ Add a card';
+        addBtn.addEventListener('click', () => showAddForm(key));
+        area.appendChild(addBtn);
+      }
+
+      function updateCounts() {
+        columns.forEach(k => {
+          els.counts[k].textContent = state[k].length;
+        });
+      }
+
+      function showAddForm(columnKey) {
+        const area = els.addAreas[columnKey];
+        area.innerHTML = '';
+        const node = els.addTpl.content.firstElementChild.cloneNode(true);
+        const input = node.querySelector('.add-input');
+        const add = node.querySelector('[data-action="add"]');
+        const cancel = node.querySelector('[data-action="cancel"]');
+
+        add.addEventListener('click', () => {
+          const text = input.value.trim();
+          if (!text) return input.focus();
+          state[columnKey].push(makeCard(text));
+          saveProjects();
+          renderColumn(columnKey);
+          updateCounts();
+          setTimeout(() => {
+            const items = els.lists[columnKey].querySelectorAll('.card');
+            const last = items[items.length - 1];
+            if (last) last.classList.add('pulse');
+            setTimeout(() => last && last.classList.remove('pulse'), 400);
+          }, 0);
+        });
+
+        cancel.addEventListener('click', () => {
+          renderColumn(columnKey);
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            add.click();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancel.click();
+          }
+        });
+
+        area.appendChild(node);
+        input.focus();
+      }
+
+      function removeCard(columnKey, id) {
+        state[columnKey] = state[columnKey].filter(c => c.id !== id);
+        saveProjects();
+        renderColumn(columnKey);
+        updateCounts();
+      }
+
+      function findCardLocation(id) {
+        for (const col of columns) {
+          const idx = state[col].findIndex(c => c.id === id);
+          if (idx !== -1) return { col, idx };
+        }
+        return null;
+      }
+
+      function startInlineEdit(node, columnKey, id) {
+        const textEl = node.querySelector('.card-text');
+        const original = textEl.textContent;
+        const input = document.createElement('textarea');
+        input.className = 'edit-input';
+        input.value = original;
+        textEl.replaceWith(input);
+        input.focus();
+        input.setSelectionRange(original.length, original.length);
+
+        function commit() {
+          const value = input.value.trim();
+          const card = state[columnKey].find(c => c.id === id);
+          if (card) {
+            card.text = value || original;
+            saveProjects();
+            renderColumn(columnKey);
+          }
+        }
+        function cancel() { renderColumn(columnKey); }
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        });
+        input.addEventListener('blur', commit);
+      }
+
+      // Drag & drop
+      function onDragStart(e) {
+        const cardEl = e.currentTarget;
+        const id = cardEl.dataset.id;
+        const loc = findCardLocation(id);
+        drag.id = id;
+        drag.from = loc ? loc.col : null;
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', id); } catch (_) {}
+        requestAnimationFrame(() => cardEl.classList.add('dragging'));
+      }
+
+      function ensurePlaceholder() {
+        if (!drag.placeholder) {
+          drag.placeholder = document.createElement('div');
+          drag.placeholder.className = 'card placeholder';
+          drag.placeholder.innerHTML = '<div class="card-text">Drop here</div>';
+        }
+        return drag.placeholder;
+      }
+
+      function onDragOver(e, columnKey) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const list = els.lists[columnKey];
+        const ph = ensurePlaceholder();
+        if (!list.contains(ph)) list.appendChild(ph);
+
+        const afterEl = getCardAfterY(list, e.clientY);
+        if (afterEl == null) list.appendChild(ph);
+        else list.insertBefore(ph, afterEl);
+      }
+
+      function onDragLeave(e, columnKey) {
+        const list = els.lists[columnKey];
+        if (drag.placeholder && !list.contains(e.relatedTarget)) {
+          if (list.contains(drag.placeholder)) list.removeChild(drag.placeholder);
+        }
+      }
+
+      function onDrop(e, columnKey) {
+        e.preventDefault();
+        const id = drag.id || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+        if (!id) return cleanupDrag();
+
+        const from = drag.from; const to = columnKey;
+        const fromLoc = findCardLocation(id);
+        if (!fromLoc) return cleanupDrag();
+
+        const ph = drag.placeholder; const list = els.lists[columnKey];
+        let newIndex = state[to].length;
+        if (ph && list.contains(ph)) {
+          const nodes = Array.from(list.children).filter(n => !n.classList.contains('placeholder'));
+          const afterEl = ph.nextElementSibling;
+          if (!afterEl) newIndex = nodes.length; else {
+            newIndex = nodes.indexOf(afterEl); if (newIndex === -1) newIndex = nodes.length;
+          }
+        }
+
+        const [moved] = state[from].splice(fromLoc.idx, 1);
+        if (from === to && fromLoc.idx < newIndex) newIndex -= 1;
+        state[to].splice(newIndex, 0, moved);
+
+        saveProjects();
+        renderAll();
+        cleanupDrag();
+      }
+
+      function getCardAfterY(list, y) {
+        const cards = [...list.querySelectorAll('.card:not(.placeholder):not(.dragging)')];
+        return cards.find(card => {
+          const rect = card.getBoundingClientRect();
+          return y <= rect.top + rect.height / 2;
+        }) || null;
+      }
+
+      function onDragEnd() { cleanupDrag(); }
+
+      function cleanupDrag() {
+        document.querySelectorAll('.card.dragging').forEach(el => el.classList.remove('dragging'));
+        if (drag.placeholder && drag.placeholder.parentElement) {
+          drag.placeholder.parentElement.removeChild(drag.placeholder);
+        }
+        drag = { id: null, from: null, placeholder: drag.placeholder };
+        drag.placeholder = null;
+      }
+
+      // Theme
+      function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (prefersDark ? 'dark' : 'light');
+        setTheme(theme);
+        els.themeToggle.addEventListener('click', () => {
+          const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+          setTheme(next);
+        });
+      }
+
+      function setTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem(THEME_KEY, theme);
+        els.themeToggle.querySelector('.icon').textContent = theme === 'dark' ? '🌙' : '☀️';
+      }
+
+      // Global actions
+      function attachGlobalHandlers() {
+        els.board.addEventListener('click', (e) => {
+          if (e.target.matches('[data-action="show-add"], [data-action="show-add"] *')) {
+            const col = e.target.closest('.column').dataset.column;
+            showAddForm(col);
+          }
+        });
+
+        els.clearAll.addEventListener('click', () => {
+          if (!confirm(`Clear the board for "${active.name}" and reset to starter tasks?`)) return;
+          active.data = getDefaultState();
+          state = active.data;
+          saveProjects();
+          renderAll();
+        });
+
+        // Track original column on dragstart via capture on lists
+        Object.entries(els.lists).forEach(([key, list]) => {
+          list.addEventListener('dragstart', () => { drag.from = key; }, true);
+        });
+
+        // Project select
+        els.projectSelect.addEventListener('change', (e) => setActiveProject(e.target.value));
+
+        // New project
+        els.newProject.addEventListener('click', () => {
+          const name = prompt('Project name?', 'New project');
+          const p = createProject(name || 'New project', emptyState());
+          model.projects.push(p);
+          model.activeId = p.id;
+          saveProjects();
+          populateProjectSelect();
+          setActiveProject(p.id);
+        });
+
+        // Project menu toggle
+        els.projectMenuBtn.addEventListener('click', () => {
+          const open = els.projectMenu.getAttribute('aria-hidden') === 'false';
+          els.projectMenu.setAttribute('aria-hidden', open ? 'true' : 'false');
+          els.projectMenuBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+        });
+
+        document.addEventListener('click', (e) => {
+          const wrap = els.projectMenu.closest('.menu-wrap');
+          if (!wrap.contains(e.target)) closeMenu();
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+        els.projectMenu.addEventListener('click', (e) => {
+          const btn = e.target.closest('.menu-item');
+          if (!btn) return;
+          const action = btn.dataset.action;
+          if (action === 'rename') {
+            const name = prompt('Rename project', active.name);
+            if (name) { active.name = name.trim() || active.name; saveProjects(); populateProjectSelect(); selectActiveInUI(); }
+          }
+          if (action === 'duplicate') {
+            const copy = createProject(`${active.name} copy`, JSON.parse(JSON.stringify(active.data)));
+            model.projects.push(copy); model.activeId = copy.id; saveProjects(); populateProjectSelect(); setActiveProject(copy.id);
+          }
+          if (action === 'export') {
+            exportProject(active);
+          }
+          if (action === 'import') {
+            els.importInput.click();
+          }
+          if (action === 'delete') {
+            if (model.projects.length <= 1) return alert('You must keep at least one project.');
+            if (!confirm(`Delete project "${active.name}"? This cannot be undone.`)) return;
+            model.projects = model.projects.filter(p => p.id !== active.id);
+            model.activeId = model.projects[0].id;
+            saveProjects();
+            populateProjectSelect();
+            setActiveProject(model.activeId);
+          }
+          closeMenu();
+        });
+
+        els.importInput.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            let board;
+            if (data && ('todo' in data) && ('progress' in data) && ('done' in data)) {
+              board = data;
+            } else if (data && data.data && ('todo' in data.data)) {
+              board = data.data;
+            } else {
+              throw new Error('Unsupported JSON shape');
+            }
+            const p = createProject(file.name.replace(/\.json$/i,'') || 'Imported project', board);
+            model.projects.push(p);
+            model.activeId = p.id;
+            saveProjects();
+            populateProjectSelect();
+            setActiveProject(p.id);
+          } catch (err) {
+            alert('Failed to import: ' + err.message);
+          } finally {
+            e.target.value = '';
+          }
+        });
+      }
+
+      function closeMenu() {
+        els.projectMenu.setAttribute('aria-hidden', 'true');
+        els.projectMenuBtn.setAttribute('aria-expanded', 'false');
+      }
+
+      function exportProject(p) {
+        const dataStr = JSON.stringify(p.data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = `${p.name.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase() || 'project'}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Kanban Board</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Kanban Board</h1>
+    <div id="kanban-board">
+      <div class="kanban-column" data-status="todo">
+        <h2>To Do</h2>
+        <div class="kanban-tasks" id="todo-tasks"></div>
+        <button class="add-task-btn" data-target="todo-tasks">+ Add Task</button>
+      </div>
+      <div class="kanban-column" data-status="inprogress">
+        <h2>In Progress</h2>
+        <div class="kanban-tasks" id="inprogress-tasks"></div>
+        <button class="add-task-btn" data-target="inprogress-tasks">+ Add Task</button>
+      </div>
+      <div class="kanban-column" data-status="done">
+        <h2>Done</h2>
+        <div class="kanban-tasks" id="done-tasks"></div>
+        <button class="add-task-btn" data-target="done-tasks">+ Add Task</button>
+      </div>
+    </div>
+    <template id="task-template">
+      <div class="kanban-task" draggable="true">
+        <span class="task-text"></span>
+        <button class="delete-task-btn">✕</button>
+      </div>
+    </template>
+    <script>
+    // Util: Generate unique IDs for tasks
+    function uuid() {
+      return '_' + Math.random().toString(36).substr(2, 9);
+    }
+    // Task state
+    let board = {
+      todo: [], inprogress: [], done: []
+    };
+
+    function renderBoard() {
+      ['todo', 'inprogress', 'done'].forEach(status => {
+        const container = document.getElementById(status+'-tasks');
+        container.innerHTML = '';
+        board[status].forEach(task => {
+          const tpl = document.getElementById('task-template');
+          const node = tpl.content.cloneNode(true);
+          node.querySelector('.task-text').textContent = task.text;
+          node.querySelector('.kanban-task').setAttribute('data-id', task.id);
+          container.appendChild(node);
+        });
+      });
+      attachTaskEvents();
+    }
+
+    // Add task
+    document.querySelectorAll('.add-task-btn').forEach(btn => {
+      btn.onclick = function() {
+        const status = btn.dataset.target.replace('-tasks','');
+        const text = prompt('Task description:');
+        if (text && text.trim()) {
+          board[status].push({ id: uuid(), text });
+          renderBoard();
+        }
+      }
+    });
+    // Delete task
+    function attachTaskEvents() {
+      document.querySelectorAll('.delete-task-btn').forEach(btn => {
+        btn.onclick = function(e) {
+          const taskNode = btn.closest('.kanban-task');
+          const id = taskNode.getAttribute('data-id');
+          for (const status of ['todo', 'inprogress', 'done']) {
+            board[status] = board[status].filter(t => t.id !== id);
+          }
+          renderBoard();
+        }
+      });
+      // Drag and drop events
+      document.querySelectorAll('.kanban-task').forEach(taskNode => {
+        taskNode.ondragstart = function(e) {
+          e.dataTransfer.setData('text/plain', taskNode.getAttribute('data-id'));
+          setTimeout(()=>taskNode.classList.add('dragging'),1);
+        };
+        taskNode.ondragend = function(e) {
+          taskNode.classList.remove('dragging');
+        };
+      });
+    }
+    // Allow dropping on columns
+    document.querySelectorAll('.kanban-tasks').forEach(col => {
+      col.ondragover = function(e) { e.preventDefault(); col.classList.add('dragover'); };
+      col.ondragleave = function() { col.classList.remove('dragover'); };
+      col.ondrop = function(e) {
+        e.preventDefault();
+        col.classList.remove('dragover');
+        const id = e.dataTransfer.getData('text/plain');
+        let from, task;
+        for (const status of ['todo','inprogress','done']) {
+          const idx = board[status].findIndex(t=>t.id===id);
+          if(idx>=0) { from = status; task = board[status][idx]; board[status].splice(idx,1); break; }
+        }
+        const to = col.id.replace('-tasks','');
+        if(task&&to) { board[to].push(task); renderBoard(); }
+      };
+    });
+    // Initial render
+    renderBoard();
+    </script>
+</body>
+</html>

@@ -18,7 +18,7 @@ print("< starting backend... >")
 app = FastAPI()
 
 # Project environment path
-PROJECT_ENV_PATH = "/Users/coltonkirsten/Desktop/SeniorThesis/SimpleAgent-coder/backend/project_env"
+PROJECT_ENV_PATH = "/Users/coltonkirsten/Desktop/Projects/GenUI Playground/SeniorThesis/SimpleAgent-coder/backend/project_env"
 
 # WebSocket connection manager for notifications
 class ConnectionManager:

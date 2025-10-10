@@ -1,0 +1,98 @@
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    text-align: center;
+    background-color: #f7f3e9;
+    color: #50412a;
+    margin: 0;
+    padding: 0;
+}
+#kanban-board {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 50px auto;
+    max-width: 1100px;
+}
+.kanban-column {
+    background: #fff7ed;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(115, 60, 21, 0.09), 0 1.5px 7px rgba(120, 44, 19, 0.02);
+    width: 300px;
+    min-height: 370px;
+    padding: 22px 15px 24px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.kanban-column h2 {
+    margin-top: 0;
+    margin-bottom: 14px;
+    font-size: 1.32em;
+    font-weight: 600;
+    color: #803c5e;
+    letter-spacing: 0.5px;
+}
+.kanban-tasks {
+    flex: 1;
+    min-height: 50px;
+    margin-bottom: 10px;
+    transition: background 0.19s;
+    background: none;
+    border-radius: 6px;
+}
+.kanban-tasks.dragover {
+    background: #fcebe3;
+    border: 2px dashed #dfbfae;
+}
+.kanban-task {
+    background: #facdd7;
+    color: #703144;
+    border-radius: 7px;
+    margin-bottom: 9px;
+    padding: 10px 11px 8px 10px;
+    text-align: left;
+    box-shadow: 0 2px 6px rgba(134,36,72,0.09);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: box-shadow 0.2s, opacity 0.2s;
+}
+.kanban-task.dragging {
+    opacity: 0.5;
+    box-shadow: none;
+}
+.delete-task-btn {
+    background: none;
+    color: #9a2b36;
+    border: none;
+    font-size: 1.28em;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 0 7px 0 7px;
+    transition: background 0.18s;
+}
+.delete-task-btn:hover {
+    background: #fdecea;
+}
+.add-task-btn {
+    margin: 7px 2px 0 2px;
+    padding: 7px 0px;
+    border-radius: 8px;
+    border: none;
+    color: #fff6ef;
+    background: #993f5a;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+.add-task-btn:hover {
+    background: #7e2450;
+}
+h1 {
+    margin-top:36px;
+    margin-bottom:20px;
+    letter-spacing: 1.1px;
+    font-weight: bold;
+    color: #803c5e;
+}

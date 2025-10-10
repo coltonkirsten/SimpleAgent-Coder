@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrightPath Travel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1 class="logo" aria-label="BrightPath Travel">BrightPath Travel</h1>
+      <p class="tagline">Your simple, friendly travel planning companion</p>
+    </div>
+  </header>
+
+  <section class="hero container" aria-label="Hero">
+    <h2>Explore the world with ease</h2>
+    <p>We plan easy, affordable trips to popular destinations. Pick a destination and start packing!</p>
+    <a href="#destinations" class="btn">See destinations</a>
+  </section>
+
+  <section id="destinations" class="destinations container" aria-label="Destinations">
+    <h2>Destinations</h2>
+    <div class="cards">
+      <article class="card">
+        <h3>Paris</h3>
+        <p>Love, lights, and lasting memories. 5-day city break ideas.</p>
+      </article>
+      <article class="card">
+        <h3>Tokyo</h3>
+        <p>Tradition meets tech. Sushi, temples, and neon nights.</p>
+      </article>
+      <article class="card">
+        <h3>New York</h3>
+        <p>City that never sleeps. Broadway, parks, and skyline vibes.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="booking" class="container" aria-label="Booking">
+    <h2>Book a Trip</h2>
+    <form class="booking-form" onsubmit="event.preventDefault(); alert('Thank you! This is a simple demo.');" >
+      <label>Name<input type="text" name="name" required placeholder="Your name" /></label>
+      <label>Email<input type="email" name="email" required placeholder="you@example.com" /></label>
+      <label>Destination
+        <select name="destination" required>
+          <option value="">Choose a destination</option>
+          <option>Paris</option>
+          <option>Tokyo</option>
+          <option>New York</option>
+        </select>
+      </label>
+      <button type="submit" class="btn">Request Info</button>
+    </form>
+  </section>
+
+  <footer class="container" aria-label="Footer">
+    <p>&copy; 2025 BrightPath Travel. All rights reserved.</p>
+  </footer>
+</body>
+</html>

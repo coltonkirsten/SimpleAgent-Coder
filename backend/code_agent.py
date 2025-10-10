@@ -19,7 +19,8 @@ Tools = {
 # System message for both backends
 system_message = prompts.code_agent_system_prompt
 # model = "anthropic/claude-sonnet-4-20250514"
-model = "openai/gpt-4.1"
+# model = "openai/gpt-4.1"
+model = "openai/gpt-5"
 
 # Create the LitellmInterface instance
 bot = LitellmInterface(
